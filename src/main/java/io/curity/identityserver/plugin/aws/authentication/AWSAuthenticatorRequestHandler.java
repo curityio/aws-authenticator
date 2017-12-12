@@ -76,8 +76,13 @@ public class AWSAuthenticatorRequestHandler implements AuthenticatorRequestHandl
         _oauthClient.redirectToAuthorizationEndpoint(response,
                 _config.getDomain().toString() + _config.getAuthorizationEndpoint().toString(),
                 _config.getClientId(),
-                _config.getScope(), builder.build());
+                getScope(_config), builder.build());
 
         return Optional.empty();
+    }
+
+    public static String getScope(AWSAuthenticatorPluginConfig config) {
+        String scope = config.getScope();
+        return scope.toLowerCase().contains("openid") ? scope : scope + " openid";
     }
 }
