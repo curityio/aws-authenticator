@@ -17,7 +17,7 @@ Config
 | ``Client Secret`` |                                                  | AWS app secret key          |
 |                   |                                                  |                             |
 +-------------------+--------------------------------------------------+-----------------------------+
-| ``Domain``        |                                                  | URL App domain              |
+| ``Domain``        |                                                  | App domain                  |
 |                   |                                                  |                             |
 +-------------------+--------------------------------------------------+-----------------------------+
 | ``Authorization`` | /oauht2/authorize                                | URL to the AWS              |
@@ -27,7 +27,7 @@ Config
 | ``Token``         | /oauth2/token                                    | URL to the AWS              |
 | ``Endpoint``      |                                                  | authorization endpoint      |
 +-------------------+--------------------------------------------------+-----------------------------+
-| ``Scope``         |    ``openid profile``                            | A space-separated list of   |
+| ``Scope``         | ``openid profile``                               | A space-separated list of   |
 |                   |                                                  | scopes to request from      |
 |                   |                                                  | AWS                         |
 +-------------------+--------------------------------------------------+-----------------------------+
