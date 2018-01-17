@@ -16,35 +16,40 @@
 
 package io.curity.identityserver.plugin.aws.descriptor;
 
-import com.google.common.collect.ImmutableMap;
-import io.curity.identityserver.plugin.aws.authentication.CallbackRequestHandler;
 import io.curity.identityserver.plugin.aws.authentication.AWSAuthenticatorRequestHandler;
+import io.curity.identityserver.plugin.aws.authentication.CallbackRequestHandler;
 import io.curity.identityserver.plugin.aws.config.AWSAuthenticatorPluginConfig;
 import se.curity.identityserver.sdk.authentication.AuthenticatorRequestHandler;
 import se.curity.identityserver.sdk.plugin.descriptor.AuthenticatorPluginDescriptor;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public final class AWSAuthenticatorPluginDescriptor
-        implements AuthenticatorPluginDescriptor<AWSAuthenticatorPluginConfig> {
-    public final static String INDEX = "index";
+        implements AuthenticatorPluginDescriptor<AWSAuthenticatorPluginConfig>
+{
     public final static String CALLBACK = "callback";
 
     @Override
-    public String getPluginImplementationType() {
+    public String getPluginImplementationType()
+    {
         return "aws";
     }
 
     @Override
-    public Class<? extends AWSAuthenticatorPluginConfig> getConfigurationType() {
+    public Class<? extends AWSAuthenticatorPluginConfig> getConfigurationType()
+    {
         return AWSAuthenticatorPluginConfig.class;
     }
 
     @Override
-    public Map<String, Class<? extends AuthenticatorRequestHandler<?>>> getAuthenticationRequestHandlerTypes() {
-        return ImmutableMap.of(
-                INDEX, AWSAuthenticatorRequestHandler.class,
-                CALLBACK, CallbackRequestHandler.class);
+    public Map<String, Class<? extends AuthenticatorRequestHandler<?>>> getAuthenticationRequestHandlerTypes()
+    {
+        Map<String, Class<? extends AuthenticatorRequestHandler<?>>> handlers = new LinkedHashMap<>(2);
+        handlers.put("index", AWSAuthenticatorRequestHandler.class);
+        handlers.put(CALLBACK, CallbackRequestHandler.class);
+
+        return handlers;
     }
 
 }
