@@ -17,7 +17,6 @@
 package io.curity.identityserver.plugin.aws.authentication;
 
 import io.curity.identityserver.plugin.aws.config.AWSAuthenticatorPluginConfig;
-import org.jose4j.jwt.consumer.JwtConsumerBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import se.curity.identityserver.sdk.Nullable;
@@ -50,7 +49,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
-import static io.curity.identityserver.plugin.aws.authentication.Constants.*;
 import static se.curity.identityserver.sdk.attribute.ContextAttributes.AUTH_TIME;
 
 public class CallbackRequestHandler implements AuthenticatorRequestHandler<CallbackGetRequestModel>
@@ -78,7 +76,8 @@ public class CallbackRequestHandler implements AuthenticatorRequestHandler<Callb
         if (request.isGetRequest())
         {
             return new CallbackGetRequestModel(request);
-        } else
+        }
+        else
         {
             throw _exceptionFactory.methodNotAllowed();
         }
@@ -101,14 +100,29 @@ public class CallbackRequestHandler implements AuthenticatorRequestHandler<Callb
         try
         {
             //parse claims without need of key
-            Map claimsMap = new JwtConsumerBuilder().setSkipAllValidators().setDisableRequireSignature().setSkipSignatureVerification().build().processToClaims(tokenResponseData.get(ID_TOKEN).toString()).getClaimsMap();
+            String[] jwtParts = Objects.toString(tokenResponseData.get("id_token")).split("\\.", 3);
 
-            String userId = claimsMap.get(USERNAME).toString();
+            if (jwtParts.length < 2)
+            {
+                throw _exceptionFactory.internalServerException(ErrorCode.EXTERNAL_SERVICE_ERROR, "Invalid JWT");
+            }
 
-            Attributes subjectAttributes = Attributes.of(Attribute.of(USERNAME, userId), Attribute.of(EMAIL, claimsMap.get(EMAIL).toString()));
-            Attributes contextAttributes = Attributes.of(Attribute.of(ACCESS_TOKEN, tokenResponseData.get(ACCESS_TOKEN).toString()),
-                    Attribute.of(AUTH_TIME, Long.valueOf(claimsMap.get(AUTH_TIME).toString())),
-                    Attribute.of(EMAIL_VERIFIED, Boolean.valueOf(claimsMap.get(EMAIL_VERIFIED).toString())));
+            Base64.Decoder base64Url = Base64.getUrlDecoder();
+            String body = new String(base64Url.decode(jwtParts[1]));
+            Map<String, Object> claimsMap = _json.fromJson(body);
+
+            String userId = claimsMap.get("cognito:username").toString();
+
+            Attributes subjectAttributes = Attributes.of(Attribute.of("username", userId),
+                    Attribute.of("email", claimsMap.get("email").toString()),
+                    Attribute.of("phone_number", (String) claimsMap.get("phone_number"))
+            );
+            Attributes contextAttributes = Attributes.of(
+                    Attribute.of("access_token", tokenResponseData.get("access_token").toString()),
+                    Attribute.of(AUTH_TIME, (Long) claimsMap.get(AUTH_TIME)),
+                    Attribute.of("email_verified", (Boolean) claimsMap.get("email_verified")),
+                    Attribute.of("phone_number_verified", (Boolean) claimsMap.get("phone_number_verified"))
+            );
             AuthenticationAttributes attributes = AuthenticationAttributes.of(
                     SubjectAttributes.of(userId, subjectAttributes),
                     ContextAttributes.of(contextAttributes));
@@ -116,7 +130,8 @@ public class CallbackRequestHandler implements AuthenticatorRequestHandler<Callb
             return Optional.ofNullable(authenticationResult);
         } catch (Exception e)
         {
-            throw _exceptionFactory.internalServerException(ErrorCode.EXTERNAL_SERVICE_ERROR, "Invalid token " + e.getMessage());
+            throw _exceptionFactory.internalServerException(ErrorCode.EXTERNAL_SERVICE_ERROR,
+                    "Invalid token " + e.getMessage());
         }
     }
 
@@ -128,7 +143,9 @@ public class CallbackRequestHandler implements AuthenticatorRequestHandler<Callb
                 .contentType("application/x-www-form-urlencoded")
                 .body(getFormEncodedBodyFrom(createPostData(_config.getClientId(), _config.getClientSecret(),
                         requestModel.getCode(), requestModel.getRequestUrl())))
-                .header("Authorization", "Basic " + Base64.getEncoder().encodeToString((_config.getClientId() + ":" + _config.getClientSecret()).getBytes()))
+                .header("Authorization", "Basic " +
+                        Base64.getEncoder().encodeToString((_config.getClientId() + ":" +
+                                _config.getClientSecret()).getBytes()))
                 .method("POST")
                 .response();
         int statusCode = tokenResponse.statusCode();
@@ -147,32 +164,6 @@ public class CallbackRequestHandler implements AuthenticatorRequestHandler<Callb
         return _json.fromJson(tokenResponse.body(HttpResponse.asString()));
     }
 
-    private AuthenticationResult getAuthenticationResult(Map<String, Object> tokenResponseData)
-    {
-        String accessToken = tokenResponseData.get("access_token").toString();
-        String refreshToken = null;
-        if (tokenResponseData.get("refresh_token") != null)
-        {
-            refreshToken = tokenResponseData.get("refresh_token").toString();
-        }
-
-        Map<String, Object> userAuthenticationData = new HashMap<>();
-        String username = ((Map) userAuthenticationData.get("user")).get(USERNAME).toString();
-        userAuthenticationData.put(USERNAME, username);
-
-
-        AuthenticationAttributes attributes = AuthenticationAttributes.of(
-                SubjectAttributes.of(username, Attributes.fromMap(userAuthenticationData)),
-                ContextAttributes.of(Attributes.of(
-                        Attribute.of("access_token", accessToken),
-                        Attribute.of("refresh_token", refreshToken)
-                )));
-        AuthenticationResult authenticationResult = new AuthenticationResult(attributes);
-
-        return authenticationResult;
-    }
-
-
     private WebServiceClient getWebServiceClient()
     {
         Optional<HttpClient> httpClient = _config.getHttpClient();
@@ -180,7 +171,8 @@ public class CallbackRequestHandler implements AuthenticatorRequestHandler<Callb
         if (httpClient.isPresent())
         {
             return _webServiceClientFactory.create(httpClient.get()).withHost(_config.getDomain().getHost());
-        } else
+        }
+        else
         {
             return _webServiceClientFactory.create(URI.create(_config.getDomain().toString()));
         }
@@ -192,7 +184,8 @@ public class CallbackRequestHandler implements AuthenticatorRequestHandler<Callb
         {
             if ("access_denied".equals(requestModel.getError()))
             {
-                _logger.debug("Got an error from AWS: {} - {}", requestModel.getError(), requestModel.getErrorDescription());
+                _logger.debug("Got an error from AWS: {} - {}", requestModel.getError(),
+                        requestModel.getErrorDescription());
 
                 throw _exceptionFactory.redirectException(
                         _authenticatorInformationProvider.getAuthenticationBaseUri().toASCIIString());
@@ -204,7 +197,10 @@ public class CallbackRequestHandler implements AuthenticatorRequestHandler<Callb
         }
     }
 
-    private static Map<String, String> createPostData(String clientId, String clientSecret, String code, String callbackUri)
+    private static Map<String, String> createPostData(String clientId,
+                                                      String clientSecret,
+                                                      String code,
+                                                      String callbackUri)
     {
         Map<String, String> data = new HashMap<>(5);
 
@@ -261,7 +257,8 @@ public class CallbackRequestHandler implements AuthenticatorRequestHandler<Callb
         if (sessionAttribute != null && state.equals(sessionAttribute.getValueOfType(String.class)))
         {
             _logger.debug("State matches session");
-        } else
+        }
+        else
         {
             _logger.debug("State did not match session");
 
