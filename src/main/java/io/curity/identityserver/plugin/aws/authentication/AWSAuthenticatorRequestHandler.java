@@ -35,10 +35,8 @@ import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 import static io.curity.identityserver.plugin.aws.descriptor.AWSAuthenticatorPluginDescriptor.CALLBACK;
@@ -66,7 +64,6 @@ public class AWSAuthenticatorRequestHandler implements AuthenticatorRequestHandl
         String redirectUri = createRedirectUri();
         String state = UUID.randomUUID().toString();
         Map<String, Collection<String>> queryStringArguments = new LinkedHashMap<>(5);
-        Set<String> scopes = new LinkedHashSet<>(7);
 
         _config.getSessionManager().put(Attribute.of("state", state));
 
@@ -75,10 +72,16 @@ public class AWSAuthenticatorRequestHandler implements AuthenticatorRequestHandl
         queryStringArguments.put("state", Collections.singleton(state));
         queryStringArguments.put("response_type", Collections.singleton("code"));
 
-        scopes.add("openid");
-        scopes.add("profile");
-
-        queryStringArguments.put("scope", Collections.singleton(String.join(" ", scopes)));
+        String scopes = _config.getScope();
+        if (!scopes.contains("openid"))
+        {
+            scopes += " openid";
+        }
+        if (!scopes.contains("profile"))
+        {
+            scopes += " profile";
+        }
+        queryStringArguments.put("scope", Collections.singleton(scopes));
 
         String authorizeEndpoint = _config.getDomain().toString() + "/oauth2/authorize";
         _logger.debug("Redirecting to {} with query string arguments {}", authorizeEndpoint,

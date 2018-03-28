@@ -42,7 +42,7 @@ public interface AWSAuthenticatorPluginConfig extends Configuration {
     @Description("Secret key used for communication with aws")
     String getClientSecret();
 
-    @Description("A space-separated list of scopes to request from AWS")
+    @Description("Scopes must be separated by spaces. System reserved scopes are openid, email, phone, profile, and aws.cognito.signin.user.admin.")
     @DefaultString("openid profile")
     String getScope();
 
