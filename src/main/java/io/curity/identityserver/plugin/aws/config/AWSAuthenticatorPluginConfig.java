@@ -33,7 +33,7 @@ import java.util.Optional;
 @SuppressWarnings("InterfaceNeverImplemented")
 public interface AWSAuthenticatorPluginConfig extends Configuration {
 
-    @Description("URL to your app")
+    @Description("Custom URL to your app (e.g: https://mydomain.auth.some-region.amazoncognito.com)")
     URI getDomain();
 
     @Description("Client id")

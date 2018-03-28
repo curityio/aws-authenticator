@@ -39,6 +39,21 @@ Creating an App in Amazon Cognito
 To create a new app in Amazon Cognito, follow `Amazon Docs <https://docs.aws.amazon.com/cognito/latest/developerguide/getting-started.html>`_.
 After you create the App, take note of the ``Client ID``, ``Secret key`` and ``Domain/Url``. These will be needed when configuring Curity.
 
+Amazon Cognito will also display the Authorization callback URL in the new app's configuration. This needs to match the yet-to-be-created Amazon Cognito authenticator instance in Curity. The default will not work, and, if used, will result in an error. This should be updated to some URL that follows the pattern ``$baseUrl/$authenticationEndpointPath/$githubAuthnticatorId/callback``, where each of these URI components has the following meaning:
+
+============================== =========================================================================================
+URI Component                  Meaning
+------------------------------ -----------------------------------------------------------------------------------------
+``baseUrl``                    The base URL of the server (defined on the ``System --> General`` page of the
+                               admin GUI). If this value is not set, then the server scheme, name, and port should be
+                               used (e.g., ``https://localhost:8443``).
+``authenticationEndpointPath`` The path of the authentication endpoint. In the admin GUI, this is located in the
+                               authentication profile's ``Endpoints`` tab for the endpoint that has the type
+                               ``auth-authentication``.
+``githubAuthenticatorId``         This is the name given to the GitHub authenticator when defining it (e.g., ``cognito1``).
+============================== =========================================================================================
+
+Once the redirect URI is updated, the app is ready to be used from Curity.
 
 Creating an Amazon Cognito Authenticator in Curity
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -58,7 +73,7 @@ The easiest way to configure a new Amazon Cognito authenticator is using the Cur
 
     .. note::
 
-        The Amazon Cognito-specific configuration is generated dynamically based on the `configuration model defined in the Java interface <https://github.com/curityio/aws-authenticator/blob/master/src/main/java/io/curity/identityserver/aws/github/descriptor/AWSuthenticatorPluginDescriptor.java>`_.
+        The Amazon Cognito-specific configuration is generated dynamically based on the `configuration model defined in the Java interface <https://github.com/curityio/aws-authenticator/blob/master/src/main/java/io/curity/identityserver/plugin/aws/config/AWSAuthenticatorPluginConfig.java>`_.
 
 6. Certain required and optional configuration settings may be provided. One of these is the ``HTTP Client`` setting. This is the HTTP client that will be used to communicate with the Amazon Cognito OAuth server's token and user info endpoints. This will only be required if the calls to Amazon Cognito are made through a forwarding proxy or there is an benign SSL Man-in-the-Middle that uses some untrusted SSL certificate. To define this, do the following:
 
@@ -71,7 +86,9 @@ The easiest way to configure a new Amazon Cognito authenticator is using the Cur
         :align: center
         :width: 600px
 
+
 7. Back in the Amazon Cognito authenticator instance that you started to define, select the new HTTP client from the dropdown if you created one; otherwise, leave this setting blank.
+
     .. figure:: docs/images/select-http-client.png
         :align: center
         :width: 400px
