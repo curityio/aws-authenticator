@@ -17,8 +17,8 @@
 package io.curity.identityserver.plugin.aws.config;
 
 import se.curity.identityserver.sdk.config.Configuration;
+import se.curity.identityserver.sdk.config.annotation.DefaultBoolean;
 import se.curity.identityserver.sdk.config.annotation.DefaultString;
-import se.curity.identityserver.sdk.config.annotation.DefaultURI;
 import se.curity.identityserver.sdk.config.annotation.Description;
 import se.curity.identityserver.sdk.service.ExceptionFactory;
 import se.curity.identityserver.sdk.service.HttpClient;
@@ -31,7 +31,8 @@ import java.net.URI;
 import java.util.Optional;
 
 @SuppressWarnings("InterfaceNeverImplemented")
-public interface AWSAuthenticatorPluginConfig extends Configuration {
+public interface AWSAuthenticatorPluginConfig extends Configuration
+{
 
     @Description("Custom URL to your app (e.g: https://mydomain.auth.some-region.amazoncognito.com)")
     URI getDomain();
@@ -42,9 +43,21 @@ public interface AWSAuthenticatorPluginConfig extends Configuration {
     @Description("Secret key used for communication with Amazon Cognito")
     String getClientSecret();
 
-    @Description("Scopes must be separated by spaces. System reserved scopes are openid, email, phone, profile, and aws.cognito.signin.user.admin.")
-    @DefaultString("openid profile")
-    String getScope();
+    @Description("Request a scope (email) that grants access to the email and email_verified info.")
+    @DefaultBoolean(false)
+    Boolean isEmail();
+
+    @Description("Request a scope (phone) that grants access to the phone_number and phone_number_verified info.")
+    @DefaultBoolean(false)
+    Boolean isPhone();
+
+    @Description("Request a scope (profile) that grants access to all user attributes that are readable by the client.")
+    @DefaultBoolean(false)
+    Boolean isProfile();
+
+    @Description("Request a scope (aws.cognito.signin.user.admin) that grants access to Amazon Cognito User Pool API operations that require access tokens, such as UpdateUserAttributes and VerifyUserAttribute.")
+    @DefaultBoolean(false)
+    Boolean isAmazonCognitoUserPoolAccess();
 
 
     @Description("The HTTP client with any proxy and TLS settings that will be used to connect to Amazon Cognito")

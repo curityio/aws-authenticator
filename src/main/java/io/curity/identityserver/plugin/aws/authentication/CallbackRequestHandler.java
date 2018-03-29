@@ -43,8 +43,10 @@ import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -114,15 +116,25 @@ public class CallbackRequestHandler implements AuthenticatorRequestHandler<Callb
             String userId = claimsMap.get("cognito:username").toString();
 
             Attributes subjectAttributes = Attributes.of(Attribute.of("username", userId),
-                    Attribute.of("email", claimsMap.get("email").toString()),
+                    Attribute.of("email", (String) claimsMap.get("email")),
                     Attribute.of("phone_number", (String) claimsMap.get("phone_number"))
             );
-            Attributes contextAttributes = Attributes.of(
-                    Attribute.of("access_token", tokenResponseData.get("access_token").toString()),
-                    Attribute.of(AUTH_TIME, (Long) claimsMap.get(AUTH_TIME)),
-                    Attribute.of("email_verified", (Boolean) claimsMap.get("email_verified")),
-                    Attribute.of("phone_number_verified", (Boolean) claimsMap.get("phone_number_verified"))
-            );
+
+            List<Attribute> contextAttributes = new ArrayList<>();
+            contextAttributes.add(Attribute.of("access_token",
+                    tokenResponseData.get("access_token").toString()));
+            contextAttributes.add(Attribute.of(AUTH_TIME, Long.valueOf(claimsMap.get(AUTH_TIME).toString())));
+            if (claimsMap.get("email_verified") != null)
+            {
+                contextAttributes.add(Attribute.of("email_verified",
+                        (Boolean) claimsMap.get("email_verified")));
+            }
+            if (claimsMap.get("phone_number_verified") != null)
+            {
+                contextAttributes.add(Attribute.of("phone_number_verified",
+                        (Boolean) claimsMap.get("phone_number_verified")));
+            }
+
             AuthenticationAttributes attributes = AuthenticationAttributes.of(
                     SubjectAttributes.of(userId, subjectAttributes),
                     ContextAttributes.of(contextAttributes));
@@ -173,7 +185,8 @@ public class CallbackRequestHandler implements AuthenticatorRequestHandler<Callb
         {
             if (!httpClient.get().getScheme().equals(_config.getDomain().getScheme()))
             {
-                _logger.warn("The HTTP client and the domain have different schemes. The one from the HTTP client will be used");
+                _logger.warn("The HTTP client and the domain have different schemes." +
+                        " The one from the HTTP client will be used");
             }
             return _webServiceClientFactory.create(httpClient.get()).withHost(_config.getDomain().getHost());
         }

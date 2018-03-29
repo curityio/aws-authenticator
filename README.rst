@@ -54,7 +54,19 @@ URI Component                  Meaning
                                (e.g., ``cognito1``).
 ============================== =========================================================================================
 
-Once the redirect URI is updated, the app is ready to be used from Curity.
+Once the redirect URI is updated, the only thing left is to configure scopes. You need to configure at least one scope `openid`.
+
+.. figure:: docs/images/aws-scope-manage-user.png
+    :align: center
+    :width: 500px
+
+
+    It could be helpful to also enable additional scopes. Scopes are the AWS-related rights or permissions that the app is requesting. If the final application (not Curity, but the downstream app) is going to perform actions using the Amazon Cognito API, additional scopes probably should be enabled. Refer to the `Amazon Cognito documentation on scopes <https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-app-idp-settings.html>`_ for an explanation of those that can be enabled and what they allow.
+
+.. warning::
+
+    If the app configuration in Amazon Cognito does not allow a certain scope (e.g., the ``Profile`` scope) but that scope is enabled in the authenticator in Curity, a server error will result. For this reason, it is important to align these two configurations or not to define any when configuring the plug-in in Curity.
+
 
 Creating an Amazon Cognito Authenticator in Curity
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -95,7 +107,7 @@ The easiest way to configure a new Amazon Cognito authenticator is using the Cur
         :width: 400px
 
 8. In the ``Client ID`` textfield, enter the client ID from the Amazon Cognito app configuration. This is the auto-generated ID that was shown after you register it. Also enter the matching ``Client Secret`` and ``Domain`` (Domain is the URL to your Cognito App).
-9. If wish to request certain scopes from Amazon Cognito during user login, toggle on the desired scopes (e.g., ``Write Access``).
+9. If you have enabled any scopes or wish to limit the scopes that Curity will request of Amazon Cognito, toggle on the desired scopes (e.g., ``Profile`` or ``Email``).
 
 Once all of these changes are made, they will be staged, but not committed (i.e., not running). To make them active, click the ``Commit`` menu option in the ``Changes`` menu. Optionally enter a comment in the ``Deploy Changes`` dialogue and click ``OK``.
 
