@@ -4,25 +4,16 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <repositories>
-        <repository>
-            <id>customer-release-repo</id>
-            <url>https://nexus.curity.se/nexus/content/repositories/customer-release-repo</url>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
-
     <groupId>io.curity.identityserver.plugin</groupId>
     <artifactId>identityserver.plugins.authenticators.aws</artifactId>
-    <version>1.0.0</version>
-    <packaging>jar</packaging>
-    <name>AWS Cognito Authenticator</name>
+    <version>1.2.0-SNAPSHOT</version>
+
+    <name>AWS Authenticator</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <libPluginsDir>lib/plugins/authenticator-aws</libPluginsDir>
+        <project.curityVersion>2.4.0</project.curityVersion>
+        <project.slf4jVersion>1.7.22</project.slf4jVersion>
     </properties>
 
     <build>
@@ -36,22 +27,6 @@
                     <target>1.8</target>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.0.0</version>
-                <configuration>
-                    <outputDirectory>${DIST_DIR}/${libPluginsDir}</outputDirectory>
-                    <archive>
-                        <manifestEntries>
-                            <Implementation-Title>AWS-Authenticator-Plugin</Implementation-Title>
-                            <Implementation-Vendor>Curity AB</Implementation-Vendor>
-                            <Plugin-Namespace>https://curity.se/ns/conf/authenticators/aws</Plugin-Namespace>
-                            <Plugin-Prefix>aws</Plugin-Prefix>
-                        </manifestEntries>
-                    </archive>
-                </configuration>
-            </plugin>
         </plugins>
     </build>
 
@@ -59,39 +34,32 @@
         <dependency>
             <groupId>se.curity.identityserver</groupId>
             <artifactId>identityserver.sdk</artifactId>
-            <version>2.2.2</version>
+            <version>${project.curityVersion}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.7.22</version>
+            <version>${project.slf4jVersion}</version>
+            <scope>provided</scope>
         </dependency>
-        <dependency>
-            <groupId>com.google.collections</groupId>
-            <artifactId>google-collections</artifactId>
-            <version>1.0-rc2</version>
-        </dependency>
-        <dependency>
-            <groupId>io.curity.identityserver.plugin</groupId>
-            <artifactId>identityserver.plugins.oauth.authenticators-utility</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-        <dependency>
-            <groupId>org.bitbucket.b_c</groupId>
-            <artifactId>jose4j</artifactId>
-            <version>0.6.2</version>
-        </dependency>
-
-
-
     </dependencies>
 
-    <distributionManagement>
+    <repositories>
         <repository>
-            <id>curity-release-repo</id>
-            <name>Curity Nexus Release Repository</name>
-            <url>https://nexus.curity.se/nexus/content/repositories/twobo-release-repo/</url>
+            <id>customer-release-repo</id>
+            <url>https://nexus.curity.se/nexus/content/repositories/customer-release-repo</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
         </repository>
-    </distributionManagement>
-
+        <repository>
+            <id>customer-snapshot-repo</id>
+            <name>Customer Snapshot Repository</name>
+            <url>https://nexus.curity.se/nexus/content/repositories/customer-snapshot-repo/</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+        </repository>
+    </repositories>
 </project>

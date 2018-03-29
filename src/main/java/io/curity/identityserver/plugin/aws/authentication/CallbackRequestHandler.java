@@ -16,20 +16,10 @@
 
 package io.curity.identityserver.plugin.aws.authentication;
 
-import io.curity.identityserver.plugin.authentication.DefaultOAuthClient;
-import io.curity.identityserver.plugin.authentication.OAuthClient;
-import io.curity.identityserver.plugin.authentication.ParamBuilder;
 import io.curity.identityserver.plugin.aws.config.AWSAuthenticatorPluginConfig;
-import org.apache.http.HttpHeaders;
-import org.apache.http.HttpResponse;
-import org.apache.http.HttpStatus;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.jose4j.jwt.consumer.JwtConsumerBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import se.curity.identityserver.sdk.Nullable;
 import se.curity.identityserver.sdk.attribute.Attribute;
 import se.curity.identityserver.sdk.attribute.Attributes;
 import se.curity.identityserver.sdk.attribute.AuthenticationAttributes;
@@ -38,118 +28,260 @@ import se.curity.identityserver.sdk.attribute.SubjectAttributes;
 import se.curity.identityserver.sdk.authentication.AuthenticationResult;
 import se.curity.identityserver.sdk.authentication.AuthenticatorRequestHandler;
 import se.curity.identityserver.sdk.errors.ErrorCode;
+import se.curity.identityserver.sdk.http.HttpRequest;
+import se.curity.identityserver.sdk.http.HttpResponse;
 import se.curity.identityserver.sdk.service.ExceptionFactory;
+import se.curity.identityserver.sdk.service.HttpClient;
 import se.curity.identityserver.sdk.service.Json;
+import se.curity.identityserver.sdk.service.WebServiceClient;
+import se.curity.identityserver.sdk.service.WebServiceClientFactory;
 import se.curity.identityserver.sdk.service.authentication.AuthenticatorInformationProvider;
 import se.curity.identityserver.sdk.web.Request;
 import se.curity.identityserver.sdk.web.Response;
 
-import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
-import static io.curity.identityserver.plugin.authentication.Constants.Params.*;
-import static io.curity.identityserver.plugin.aws.authentication.Constants.*;
 import static se.curity.identityserver.sdk.attribute.ContextAttributes.AUTH_TIME;
-import static se.curity.identityserver.sdk.attribute.ContextAttributes.SCOPE;
 
-public class CallbackRequestHandler
-        implements AuthenticatorRequestHandler<CallbackGetRequestModel> {
-
-
-    private static final Logger _logger = LoggerFactory.getLogger(CallbackRequestHandler.class);
+public class CallbackRequestHandler implements AuthenticatorRequestHandler<CallbackGetRequestModel>
+{
+    private final static Logger _logger = LoggerFactory.getLogger(CallbackRequestHandler.class);
 
     private final ExceptionFactory _exceptionFactory;
-    private final OAuthClient _oauthClient;
     private final AWSAuthenticatorPluginConfig _config;
-    private final HttpClient _client;
+    private final Json _json;
+    private final AuthenticatorInformationProvider _authenticatorInformationProvider;
+    private final WebServiceClientFactory _webServiceClientFactory;
 
-    public CallbackRequestHandler(ExceptionFactory exceptionFactory,
-                                  AuthenticatorInformationProvider provider,
-                                  Json json,
-                                  AWSAuthenticatorPluginConfig config) {
-        _exceptionFactory = exceptionFactory;
-        _oauthClient = new DefaultOAuthClient(exceptionFactory, provider, json, config.getSessionManager());
-        _client = HttpClientBuilder.create().build();
+    public CallbackRequestHandler(AWSAuthenticatorPluginConfig config)
+    {
+        _exceptionFactory = config.getExceptionFactory();
         _config = config;
+        _json = config.getJson();
+        _webServiceClientFactory = config.getWebServiceClientFactory();
+        _authenticatorInformationProvider = config.getAuthenticatorInformationProvider();
     }
 
     @Override
-    public CallbackGetRequestModel preProcess(Request request, Response response) {
-        if (request.isGetRequest()) {
+    public CallbackGetRequestModel preProcess(Request request, Response response)
+    {
+        if (request.isGetRequest())
+        {
             return new CallbackGetRequestModel(request);
-        } else {
+        }
+        else
+        {
             throw _exceptionFactory.methodNotAllowed();
         }
     }
 
     @Override
-    public Optional<AuthenticationResult> get(CallbackGetRequestModel requestModel,
-                                              Response response) {
-        _oauthClient.redirectToAuthenticationOnError(requestModel.getRequest(), _config.id());
+    public Optional<AuthenticationResult> post(CallbackGetRequestModel requestModel, Response response)
+    {
+        throw _exceptionFactory.methodNotAllowed();
+    }
 
-        Map<String, Object> tokenMap = getTokens(_config.getDomain() + _config.getTokenEndpoint().toString(),
-                _config.getClientId(),
-                _config.getClientSecret(),
-                requestModel.getCode(),
-                requestModel.getState());
+    @Override
+    public Optional<AuthenticationResult> get(CallbackGetRequestModel requestModel, Response response)
+    {
+        validateState(requestModel.getState());
+        handleError(requestModel);
 
-        try {
+        Map<String, Object> tokenResponseData = redeemCodeForTokens(requestModel);
+
+        try
+        {
             //parse claims without need of key
-            Map claimsMap = new JwtConsumerBuilder().setSkipAllValidators().setDisableRequireSignature().setSkipSignatureVerification().build().processToClaims(tokenMap.get(ID_TOKEN).toString()).getClaimsMap();
+            String[] jwtParts = Objects.toString(tokenResponseData.get("id_token")).split("\\.", 3);
 
-            String userId = claimsMap.get(USERNAME).toString();
+            if (jwtParts.length < 2)
+            {
+                throw _exceptionFactory.internalServerException(ErrorCode.EXTERNAL_SERVICE_ERROR, "Invalid JWT");
+            }
 
-            Attributes subjectAttributes = Attributes.of(Attribute.of(USERNAME, userId), Attribute.of(EMAIL, claimsMap.get(EMAIL).toString()));
-            Attributes contextAttributes = Attributes.of(Attribute.of(PARAM_ACCESS_TOKEN, tokenMap.get(PARAM_ACCESS_TOKEN).toString()),
-                    Attribute.of(AUTH_TIME, Long.valueOf(claimsMap.get(AUTH_TIME).toString())),
-                    Attribute.of(EMAIL_VERIFIED, Boolean.valueOf(claimsMap.get(EMAIL_VERIFIED).toString())));
+            Base64.Decoder base64Url = Base64.getUrlDecoder();
+            String body = new String(base64Url.decode(jwtParts[1]));
+            Map<String, Object> claimsMap = _json.fromJson(body);
+
+            String userId = claimsMap.get("cognito:username").toString();
+
+            Attributes subjectAttributes = Attributes.of(Attribute.of("username", userId),
+                    Attribute.of("email", (String) claimsMap.get("email")),
+                    Attribute.of("phone_number", (String) claimsMap.get("phone_number"))
+            );
+
+            List<Attribute> contextAttributes = new ArrayList<>();
+            contextAttributes.add(Attribute.of("access_token",
+                    tokenResponseData.get("access_token").toString()));
+            contextAttributes.add(Attribute.of(AUTH_TIME, Long.valueOf(claimsMap.get(AUTH_TIME).toString())));
+            if (claimsMap.get("email_verified") != null)
+            {
+                contextAttributes.add(Attribute.of("email_verified",
+                        (Boolean) claimsMap.get("email_verified")));
+            }
+            if (claimsMap.get("phone_number_verified") != null)
+            {
+                contextAttributes.add(Attribute.of("phone_number_verified",
+                        (Boolean) claimsMap.get("phone_number_verified")));
+            }
+
             AuthenticationAttributes attributes = AuthenticationAttributes.of(
                     SubjectAttributes.of(userId, subjectAttributes),
                     ContextAttributes.of(contextAttributes));
             AuthenticationResult authenticationResult = new AuthenticationResult(attributes);
             return Optional.ofNullable(authenticationResult);
-        } catch (Exception e) {
-            throw _exceptionFactory.internalServerException(ErrorCode.EXTERNAL_SERVICE_ERROR, "Invalid token " + e.getMessage());
+        }
+        catch (Exception e)
+        {
+            throw _exceptionFactory.internalServerException(ErrorCode.EXTERNAL_SERVICE_ERROR,
+                    "Invalid token " + e.getMessage());
         }
     }
 
-    @Override
-    public Optional<AuthenticationResult> post(CallbackGetRequestModel requestModel,
-                                               Response response) {
-        throw _exceptionFactory.methodNotAllowed();
-    }
+    private Map<String, Object> redeemCodeForTokens(CallbackGetRequestModel requestModel)
+    {
+        HttpResponse tokenResponse = getWebServiceClient()
+                .withPath("/oauth2/token")
+                .request()
+                .contentType("application/x-www-form-urlencoded")
+                .body(getFormEncodedBodyFrom(createPostData(_config.getClientId(), _config.getClientSecret(),
+                        requestModel.getCode(), requestModel.getRequestUrl())))
+                .header("Authorization", "Basic " +
+                        Base64.getEncoder().encodeToString((_config.getClientId() + ":" +
+                                _config.getClientSecret()).getBytes()))
+                .method("POST")
+                .response();
+        int statusCode = tokenResponse.statusCode();
 
-    public Map<String, Object> getTokens(String tokenEndpoint, String clientId, String clientSecret, String code, String state) {
-
-        _oauthClient.validateState(state);
-
-        try {
-            ParamBuilder postData = new ParamBuilder();
-            postData.addPair(PARAM_CODE, code)
-                    .addPair(PARAM_GRANT_TYPE, PARAM_GRANT_TYPE_AUTHORIZATION_CODE)
-                    .addPair(SCOPE, AWSAuthenticatorRequestHandler.getScope(_config))
-                    .addPair(PARAM_REDIRECT_URI, _oauthClient.getCallbackUrl());
-            UrlEncodedFormEntity data = new UrlEncodedFormEntity(postData.getPairs());
-
-            HttpPost post = new HttpPost(tokenEndpoint);
-            post.addHeader(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE);
-            post.setHeader(HttpHeaders.AUTHORIZATION, "Basic " + Base64.getEncoder().encodeToString((clientId + ":" + clientSecret).getBytes()));
-            post.setEntity(data);
-
-            HttpResponse response = _client.execute(post);
-            if (response.getStatusLine().getStatusCode() != HttpStatus.SC_OK) {
-                _logger.debug("Got error response from token endpoint {}", response.getStatusLine());
-
-                throw _exceptionFactory.internalServerException(ErrorCode.INVALID_SERVER_STATE, "INTERNAL SERVER ERROR");
+        if (statusCode != 200)
+        {
+            if (_logger.isInfoEnabled())
+            {
+                _logger.info("Got error response from token endpoint: error = {}, {}", statusCode,
+                        tokenResponse.body(HttpResponse.asString()));
             }
 
-            return _oauthClient.parseResponse(response);
-        } catch (IOException e) {
-            _logger.warn("Could not communicate with token endpoint", e);
+            throw _exceptionFactory.internalServerException(ErrorCode.EXTERNAL_SERVICE_ERROR);
+        }
 
-            throw _exceptionFactory.internalServerException(ErrorCode.EXTERNAL_SERVICE_ERROR, "Authentication failed");
+        return _json.fromJson(tokenResponse.body(HttpResponse.asString()));
+    }
+
+    private WebServiceClient getWebServiceClient()
+    {
+        Optional<HttpClient> httpClient = _config.getHttpClient();
+
+        if (httpClient.isPresent())
+        {
+            if (!httpClient.get().getScheme().equals(_config.getDomain().getScheme()))
+            {
+                _logger.warn("The HTTP client and the domain have different schemes." +
+                        " The one from the HTTP client will be used");
+            }
+            return _webServiceClientFactory.create(httpClient.get()).withHost(_config.getDomain().getHost());
+        }
+        else
+        {
+            return _webServiceClientFactory.create(URI.create(_config.getDomain().toString()));
+        }
+    }
+
+    private void handleError(CallbackGetRequestModel requestModel)
+    {
+        if (!Objects.isNull(requestModel.getError()))
+        {
+            if ("access_denied".equals(requestModel.getError()))
+            {
+                _logger.debug("Got an error from AWS: {} - {}", requestModel.getError(),
+                        requestModel.getErrorDescription());
+
+                throw _exceptionFactory.redirectException(
+                        _authenticatorInformationProvider.getAuthenticationBaseUri().toString());
+            }
+
+            _logger.warn("Got an error from AWS: {} - {}", requestModel.getError(), requestModel.getErrorDescription());
+
+            throw _exceptionFactory.externalServiceException("Login with AWS failed");
+        }
+    }
+
+    private static Map<String, String> createPostData(String clientId,
+                                                      String clientSecret,
+                                                      String code,
+                                                      String callbackUri)
+    {
+        Map<String, String> data = new HashMap<>(5);
+
+        data.put("client_id", clientId);
+        data.put("client_secret", clientSecret);
+        data.put("code", code);
+        data.put("grant_type", "authorization_code");
+        data.put("redirect_uri", callbackUri);
+        data.put("scope", "openid profile");
+
+        return data;
+    }
+
+    private static HttpRequest.BodyProcessor getFormEncodedBodyFrom(Map<String, String> data)
+    {
+        StringBuilder stringBuilder = new StringBuilder();
+
+        data.entrySet().forEach(e -> appendParameter(stringBuilder, e));
+
+        return HttpRequest.fromString(stringBuilder.toString());
+    }
+
+    private static void appendParameter(StringBuilder stringBuilder, Map.Entry<String, String> entry)
+    {
+        String key = entry.getKey();
+        String value = entry.getValue();
+        String encodedKey = urlEncodeString(key);
+        stringBuilder.append(encodedKey);
+
+        if (!Objects.isNull(value))
+        {
+            String encodedValue = urlEncodeString(value);
+            stringBuilder.append("=").append(encodedValue);
+        }
+
+        stringBuilder.append("&");
+    }
+
+    private static String urlEncodeString(String unencodedString)
+    {
+        try
+        {
+            return URLEncoder.encode(unencodedString, StandardCharsets.UTF_8.name());
+        }
+        catch (UnsupportedEncodingException e)
+        {
+            throw new RuntimeException("This server cannot support UTF-8!", e);
+        }
+    }
+
+    private void validateState(String state)
+    {
+        @Nullable Attribute sessionAttribute = _config.getSessionManager().get("state");
+
+        if (sessionAttribute != null && state.equals(sessionAttribute.getValueOfType(String.class)))
+        {
+            _logger.debug("State matches session");
+        }
+        else
+        {
+            _logger.debug("State did not match session");
+
+            throw _exceptionFactory.badRequestException(ErrorCode.INVALID_SERVER_STATE, "Bad state provided");
         }
     }
 }
