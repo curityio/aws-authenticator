@@ -128,7 +128,8 @@ public class CallbackRequestHandler implements AuthenticatorRequestHandler<Callb
                     ContextAttributes.of(contextAttributes));
             AuthenticationResult authenticationResult = new AuthenticationResult(attributes);
             return Optional.ofNullable(authenticationResult);
-        } catch (Exception e)
+        }
+        catch (Exception e)
         {
             throw _exceptionFactory.internalServerException(ErrorCode.EXTERNAL_SERVICE_ERROR,
                     "Invalid token " + e.getMessage());
@@ -170,6 +171,10 @@ public class CallbackRequestHandler implements AuthenticatorRequestHandler<Callb
 
         if (httpClient.isPresent())
         {
+            if (!httpClient.get().getScheme().equals(_config.getDomain().getScheme()))
+            {
+                _logger.warn("The HTTP client and the domain have different schemes. The one from the HTTP client will be used");
+            }
             return _webServiceClientFactory.create(httpClient.get()).withHost(_config.getDomain().getHost());
         }
         else
@@ -188,7 +193,7 @@ public class CallbackRequestHandler implements AuthenticatorRequestHandler<Callb
                         requestModel.getErrorDescription());
 
                 throw _exceptionFactory.redirectException(
-                        _authenticatorInformationProvider.getAuthenticationBaseUri().toASCIIString());
+                        _authenticatorInformationProvider.getAuthenticationBaseUri().toString());
             }
 
             _logger.warn("Got an error from AWS: {} - {}", requestModel.getError(), requestModel.getErrorDescription());
@@ -244,7 +249,8 @@ public class CallbackRequestHandler implements AuthenticatorRequestHandler<Callb
         try
         {
             return URLEncoder.encode(unencodedString, StandardCharsets.UTF_8.name());
-        } catch (UnsupportedEncodingException e)
+        }
+        catch (UnsupportedEncodingException e)
         {
             throw new RuntimeException("This server cannot support UTF-8!", e);
         }

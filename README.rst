@@ -4,12 +4,12 @@ Amazon Cognito Authenticator Plugin
 .. image:: https://travis-ci.org/curityio/aws-authenticator.svg?branch=dev
     :target: https://travis-ci.org/curityio/aws-authenticator
 
-This project provides an opens source Amazon Cognito Authenticator plug-in for the Curity Identity Server. This allows an administrator to add functionality to Curity which will then enable end users to login using their StackOverflow, SuperUser, ServerFault or other Amazon Cognito credentials. The app that integrates with Curity may also be configured to receive the Amazon Cognito access token, allowing it to manage Amazon Cognito resources.
+This project provides an open source Amazon Cognito Authenticator plug-in for the Curity Identity Server. This allows an administrator to add functionality to Curity which will then enable end users to login using their StackOverflow, SuperUser, ServerFault or other Amazon Cognito credentials. The app that integrates with Curity may also be configured to receive the Amazon Cognito access token, allowing it to manage Amazon Cognito resources.
 
 System Requirements
 ~~~~~~~~~~~~~~~~~~~
 
-* Curity Identity Server 3.0.0 and `its system requirements <https://developer.curity.io/docs/latest/system-admin-guide/system-requirements.html>`_
+* Curity Identity Server 2.4.0 and `its system requirements <https://developer.curity.io/docs/latest/system-admin-guide/system-requirements.html>`_
 
 Requirements for Building from Source
 """""""""""""""""""""""""""""""""""""
@@ -39,7 +39,7 @@ Creating an App in Amazon Cognito
 To create a new app in Amazon Cognito, follow `Amazon Docs <https://docs.aws.amazon.com/cognito/latest/developerguide/getting-started.html>`_.
 After you create the App, take note of the ``Client ID``, ``Secret key`` and ``Domain/Url``. These will be needed when configuring Curity.
 
-Amazon Cognito will also display the Authorization callback URL in the new app's configuration. This needs to match the yet-to-be-created Amazon Cognito authenticator instance in Curity. The default will not work, and, if used, will result in an error. This should be updated to some URL that follows the pattern ``$baseUrl/$authenticationEndpointPath/$githubAuthnticatorId/callback``, where each of these URI components has the following meaning:
+Amazon Cognito will also display the Authorization callback URL in the new app's configuration. This needs to match the yet-to-be-created Amazon Cognito authenticator instance in Curity. This should be updated to some URL that follows the pattern ``$baseUrl/$authenticationEndpointPath/$awsAuthnticatorId/callback``, where each of these URI components has the following meaning:
 
 ============================== =========================================================================================
 URI Component                  Meaning
@@ -50,7 +50,8 @@ URI Component                  Meaning
 ``authenticationEndpointPath`` The path of the authentication endpoint. In the admin GUI, this is located in the
                                authentication profile's ``Endpoints`` tab for the endpoint that has the type
                                ``auth-authentication``.
-``githubAuthenticatorId``         This is the name given to the GitHub authenticator when defining it (e.g., ``cognito1``).
+``awsAuthenticatorId``         This is the name given to the Amazon Cognito authenticator when defining it
+                               (e.g., ``cognito1``).
 ============================== =========================================================================================
 
 Once the redirect URI is updated, the app is ready to be used from Curity.
@@ -93,7 +94,7 @@ The easiest way to configure a new Amazon Cognito authenticator is using the Cur
         :align: center
         :width: 400px
 
-8. In the ``Client ID`` textfield, enter the client ID from the Amazon Cognito app configuration. This is the auto-generated ID that was shown after you register it. Also enter the matching ``Client Secret`` and ``Domain``(Domain is the URL to your Cognito App).
+8. In the ``Client ID`` textfield, enter the client ID from the Amazon Cognito app configuration. This is the auto-generated ID that was shown after you register it. Also enter the matching ``Client Secret`` and ``Domain`` (Domain is the URL to your Cognito App).
 9. If wish to request certain scopes from Amazon Cognito during user login, toggle on the desired scopes (e.g., ``Write Access``).
 
 Once all of these changes are made, they will be staged, but not committed (i.e., not running). To make them active, click the ``Commit`` menu option in the ``Changes`` menu. Optionally enter a comment in the ``Deploy Changes`` dialogue and click ``OK``.

@@ -39,7 +39,7 @@ public interface AWSAuthenticatorPluginConfig extends Configuration {
     @Description("Client id")
     String getClientId();
 
-    @Description("Secret key used for communication with aws")
+    @Description("Secret key used for communication with Amazon Cognito")
     String getClientSecret();
 
     @Description("Scopes must be separated by spaces. System reserved scopes are openid, email, phone, profile, and aws.cognito.signin.user.admin.")
@@ -47,7 +47,7 @@ public interface AWSAuthenticatorPluginConfig extends Configuration {
     String getScope();
 
 
-    @Description("The HTTP client with any proxy and TLS settings that will be used to connect to slack")
+    @Description("The HTTP client with any proxy and TLS settings that will be used to connect to Amazon Cognito")
     Optional<HttpClient> getHttpClient();
 
     SessionManager getSessionManager();
