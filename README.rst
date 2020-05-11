@@ -1,8 +1,11 @@
 Amazon Cognito Authenticator Plugin
 ===================================
-
-.. image:: https://travis-ci.org/curityio/aws-authenticator.svg?branch=dev
-    :target: https://travis-ci.org/curityio/aws-authenticator
+   
+.. image:: https://curity.io/assets/images/badges/aws-authenticator-quality.svg
+       :target: https://curity.io/resources/code-examples/status/
+       
+.. image:: https://curity.io/assets/images/badges/aws-authenticator-availability.svg
+       :target: https://curity.io/resources/code-examples/status/
 
 This project provides an open source Amazon Cognito Authenticator plug-in for the Curity Identity Server. This allows an administrator to add functionality to Curity which will then enable end users to login using their StackOverflow, SuperUser, ServerFault or other Amazon Cognito credentials. The app that integrates with Curity may also be configured to receive the Amazon Cognito access token, allowing it to manage Amazon Cognito resources.
 
