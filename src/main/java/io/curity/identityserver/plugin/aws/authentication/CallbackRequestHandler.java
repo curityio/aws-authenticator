@@ -51,6 +51,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
+import static io.curity.identityserver.plugin.aws.descriptor.AWSAuthenticatorPluginDescriptor.CALLBACK;
 import static se.curity.identityserver.sdk.attribute.ContextAttributes.AUTH_TIME;
 
 public class CallbackRequestHandler implements AuthenticatorRequestHandler<CallbackGetRequestModel>
@@ -155,7 +156,8 @@ public class CallbackRequestHandler implements AuthenticatorRequestHandler<Callb
                 .request()
                 .contentType("application/x-www-form-urlencoded")
                 .body(getFormEncodedBodyFrom(createPostData(_config.getClientId(), _config.getClientSecret(),
-                        requestModel.getCode(), requestModel.getRequestUrl())))
+                        requestModel.getCode(), _authenticatorInformationProvider.getFullyQualifiedAuthenticationUri().toString() +
+                                "/" + CALLBACK)))
                 .header("Authorization", "Basic " +
                         Base64.getEncoder().encodeToString((_config.getClientId() + ":" +
                                 _config.getClientSecret()).getBytes()))
